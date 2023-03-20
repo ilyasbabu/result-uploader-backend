@@ -1,14 +1,21 @@
 from django.urls import path
-from .views import LoginView, StudentCreateView, ExamDropdownView, SubjectDropdownView
+from .views import (
+    LoginView,
+    StudentCreateViewFaculty,
+    ExamDropdownViewStudent,
+    SubjectDropdownViewStudent,
+    StudentDropdownViewFaculty
+)
 
 urlpatterns = [
-    # common login
+    # common
     path('login/',LoginView.as_view(),name='login'),
 
     # for faculty
-    path('create/student/',StudentCreateView.as_view(),name='create_student'),
+    path('create/student/',StudentCreateViewFaculty.as_view(),name='create_student'),
+    path('list/student/',StudentDropdownViewFaculty.as_view(),name='list_student'),
 
     # for student
-    path('dropdown/exam/',ExamDropdownView.as_view(),name='exam_dropdown'),
-    path('dropdown/subject/',SubjectDropdownView.as_view(),name='subject_dropdown'),
+    path('dropdown/exam/',ExamDropdownViewStudent.as_view(),name='exam_dropdown'),
+    path('dropdown/subject/',SubjectDropdownViewStudent.as_view(),name='subject_dropdown'),
 ]

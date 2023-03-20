@@ -1,3 +1,6 @@
+"""
+Views Naming Convention : [Functionality]View[User-Role-Accessible(optional)]
+"""
 import sys
 import string
 import random
@@ -11,7 +14,7 @@ from django.core.exceptions import ValidationError
 from rest_framework import status
 
 from .authentication import CustomTokenAuthentication
-from .serializers import UserLoginSerializer, StudentCreateSerializer
+from .serializers import UserLoginSerializer, StudentCreateSerializer, StudentListSerialzer
 from .models import User, UserAuthToken, Subject, Exam, Course, Student, Faculty
 
 
@@ -71,7 +74,8 @@ class LoginView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
 
 
-class StudentCreateView(APIView):
+class StudentCreateViewFaculty(APIView):
+    """Student creation API for faculty"""
 
     authentication_classes = [CustomTokenAuthentication]
 
@@ -127,7 +131,7 @@ class StudentCreateView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
 
 
-class ExamDropdownView(APIView):
+class ExamDropdownViewStudent(APIView):
 
     authentication_classes = [CustomTokenAuthentication]
 
@@ -136,7 +140,8 @@ class ExamDropdownView(APIView):
         return Response(status=status.HTTP_200_OK, data=exams)
 
 
-class SubjectDropdownView(APIView):
+class SubjectDropdownViewStudent(APIView):
+    """Subject Dropdown For Selected Exam"""
 
     authentication_classes = [CustomTokenAuthentication]
 
@@ -149,7 +154,7 @@ class SubjectDropdownView(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST, data="Log in as student to get subjects")
 
         # retrieving student object fropm database and getting related course object
-        student = Student.objects.filter(user=user, is_active=True)
+        student = Student.objects.filter(user=user, is_active=True)[0]
         student_course = student.course
         
         # retreiving exam id from request and returns error msg if not provided
@@ -163,15 +168,33 @@ class SubjectDropdownView(APIView):
 
 
 
+class StudentDropdownViewFaculty(APIView):
+    """Student List view for faculty"""
 
+    authentication_classes = [CustomTokenAuthentication]
 
-
-
-class StudentDropdowns(APIView):
+    permission_classes = [IsAuthenticated]
+    
     def get(self, request):
-        user = request.user
-        student = Student
-        res = {}
-        subjects = Subject.objects.filter(is_active=True)
+        try:
+            user = request.user
+            if user.role != 2:
+                raise ValidationError("You must be logged in as Faculty to view Students")
+            
+            faculty = Faculty.objects.filter(user=user, is_active=True)[0]
+            faculty_course = faculty.course
+
+            students = Student.objects.filter(is_active=True, course=faculty_course)
+            serializer = StudentListSerialzer(students, many=True)
+
+            return Response(status=status.HTTP_200_OK, data=serializer.data)
+        except Exception as e:
+            msg = "Something went wrong."
+            error_info = "\n".join(traceback.format_exception(*sys.exc_info()))
+            print(error_info)
+            if isinstance(e, ValidationError):
+                error_info = "\n".join(e.messages)
+                msg = e.messages
+            return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
 
 
