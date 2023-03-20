@@ -20,3 +20,28 @@ class StudentListSerialzer(serializers.Serializer):
 
     def get_name(self, obj):
         return obj.user.username
+    
+
+class MarksViewRequestSerialzerFaculty(serializers.Serializer):
+    student = serializers.IntegerField(required=True)
+    exam = serializers.IntegerField(required=True)
+
+
+class MarksViewRequestSerialzerStudent(serializers.Serializer):
+    exam = serializers.IntegerField(required=True)
+
+
+class MarksViewSerializer(serializers.Serializer):
+    grade = serializers.CharField()
+    grade_point = serializers.IntegerField()
+    credit = serializers.IntegerField()
+    credit_point = serializers.IntegerField()
+    status = serializers.CharField()
+    subject_code = serializers.SerializerMethodField()
+    subject_name = serializers.SerializerMethodField()
+
+    def get_subject_code(self, obj):
+        return obj.subject.subject_code
+    
+    def get_subject_name(self, obj):
+        return obj.subject.subject_name

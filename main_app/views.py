@@ -15,7 +15,14 @@ from django.core.exceptions import ValidationError
 from rest_framework import status
 
 from .authentication import CustomTokenAuthentication
-from .serializers import UserLoginSerializer, StudentCreateSerializer, StudentListSerialzer
+from .serializers import (
+    UserLoginSerializer,
+    StudentCreateSerializer,
+    StudentListSerialzer,
+    MarksViewRequestSerialzerFaculty,
+    MarksViewRequestSerialzerStudent,
+    MarksViewSerializer,
+)
 from .models import User, UserAuthToken, Subject, Exam, Course, Student, Faculty, Mark, MarkSheetDoc, ROLE_CHOICES
 
 
@@ -333,4 +340,52 @@ class MarkSheetFileUploadViewStudent(APIView):
         
 
 class ViewMarkSheetView(APIView):
-    pass
+    """View Mark Sheet Uploaded by the Student"""
+
+    authentication_classes = [CustomTokenAuthentication]
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            user = request.user
+            role = user.role
+
+            if role == 2: # faculty
+                serializer = MarksViewRequestSerialzerFaculty(data=request.GET)
+                serializer.is_valid()
+                if serializer.errors:
+                    error_list = [
+                        f"{error.upper()}: {serializer.errors[error][0]}"
+                        for error in serializer.errors
+                    ]
+                    raise ValidationError(error_list)
+                student_id = serializer.validated_data.get("student")
+                student = Student.objects.get(id=student_id)
+
+            elif role == 3: # student
+                serializer = MarksViewRequestSerialzerStudent(data=request.GET)
+                serializer.is_valid()
+                if serializer.errors:
+                    error_list = [
+                        f"{error.upper()}: {serializer.errors[error][0]}"
+                        for error in serializer.errors
+                    ]
+                    raise ValidationError(error_list)
+                student = Student.objects.get(user=user)
+
+            exam_id = serializer.validated_data.get("exam")
+            exam = Exam.objects.get(id=exam_id)
+
+            marks = Mark.objects.filter(student=student, exam=exam, is_active=True)
+            serializer = MarksViewSerializer(marks, many=True)
+            return Response(status=status.HTTP_200_OK, data=serializer.data)
+        except Exception as e:
+            msg = "Something went wrong."
+            error_info = "\n".join(traceback.format_exception(*sys.exc_info()))
+            print(error_info)
+            if isinstance(e, ValidationError):
+                error_info = "\n".join(e.messages)
+                msg = e.messages
+            return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
+
