@@ -75,6 +75,7 @@ class Student(TimeStamp):
 
 class Faculty(TimeStamp):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="faculty_user")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.user.username
