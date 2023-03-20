@@ -16,7 +16,7 @@ from rest_framework import status
 
 from .authentication import CustomTokenAuthentication
 from .serializers import UserLoginSerializer, StudentCreateSerializer, StudentListSerialzer
-from .models import User, UserAuthToken, Subject, Exam, Course, Student, Faculty, Mark, MarkSheetDoc
+from .models import User, UserAuthToken, Subject, Exam, Course, Student, Faculty, Mark, MarkSheetDoc, ROLE_CHOICES
 
 
 # Create your views here.
@@ -64,6 +64,7 @@ class LoginView(APIView):
             res["token"] = token
             res["username"] = user.username
             res["user_role"] = user.role
+            res['role_name'] = dict(ROLE_CHOICES).get(user.role)
             return Response(status=status.HTTP_201_CREATED, data=res)
         except Exception as e:
             msg = "Something went wrong."
@@ -73,6 +74,20 @@ class LoginView(APIView):
                 error_info = "\n".join(e.messages)
                 msg = e.messages
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
+
+
+class LoginDataView(APIView):
+    """Login data view from token"""
+
+    authentication_classes = [CustomTokenAuthentication]
+
+    def get(self, request):
+        user = request.user
+        res = {}
+        res["username"] = user.username
+        res["user_role"] = user.role
+        res['role_name'] = dict(ROLE_CHOICES).get(user.role)
+        return Response(status=status.HTTP_200_OK, data=res)
 
 
 class StudentCreateViewFaculty(APIView):
@@ -315,3 +330,7 @@ class MarkSheetFileUploadViewStudent(APIView):
                 error_info = "\n".join(e.messages)
                 msg = e.messages
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
+        
+
+class ViewMarkSheetView(APIView):
+    pass
