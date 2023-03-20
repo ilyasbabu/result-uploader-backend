@@ -48,20 +48,20 @@ class Course(TimeStamp):
     def __str__(self):
         return self.course_name
 
-
-class Subject(TimeStamp):
-    subject_name = models.CharField(max_length=255) # eg: TRANSACTIONS: ESSENTIAL ENGLISH LANGUAGE SKILLS
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return self.subject_name
-
-
 class Exam(TimeStamp):
     exam_name = models.CharField(max_length=255) # eg: Semester Two Exam
 
     def __str__(self):
         return self.exam_name
+
+
+class Subject(TimeStamp):
+    subject_name = models.CharField(max_length=255) # eg: TRANSACTIONS: ESSENTIAL ENGLISH LANGUAGE SKILLS
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.subject_name
 
 
 class Student(TimeStamp):

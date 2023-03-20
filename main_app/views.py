@@ -6,6 +6,7 @@ from django.shortcuts import render
 from django.db import transaction
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 from django.core.exceptions import ValidationError
 from rest_framework import status
 
@@ -78,7 +79,7 @@ class StudentCreateView(APIView):
         try:
             # check permision
             user = request.user
-            has_permission = User.objects.filter(username=user.username, role__in=[1,2]).exists()
+            has_permission = User.objects.filter(id=user.id, role__in=[1,2]).exists()
             if not has_permission:
                 raise ValidationError("You do not have permission to create Student.")
 
@@ -112,7 +113,6 @@ class StudentCreateView(APIView):
                     registration_no = registration_no,
                     course = course,
                     added_by = user,
-
                 )
                 student.save()
 
@@ -125,6 +125,44 @@ class StudentCreateView(APIView):
                 error_info = "\n".join(e.messages)
                 msg = e.messages
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
+
+
+class ExamDropdownView(APIView):
+
+    authentication_classes = [CustomTokenAuthentication]
+
+    def get(self, request):
+        exams = Exam.objects.filter(is_active = True).values("id", "exam_name")
+        return Response(status=status.HTTP_200_OK, data=exams)
+
+
+class SubjectDropdownView(APIView):
+
+    authentication_classes = [CustomTokenAuthentication]
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # retrieving user information from the request and checking if it is student
+        user = request.user
+        if user.role != 3:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Log in as student to get subjects")
+
+        # retrieving student object fropm database and getting related course object
+        student = Student.objects.filter(user=user, is_active=True)
+        student_course = student.course
+        
+        # retreiving exam id from request and returns error msg if not provided
+        exam_id = request.GET.get("exam")
+        if exam_id in [None, 'undefined', '']:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Provide Exam id along with the request")
+
+        # retrieving data from database with students course and exam id provided
+        subjects = Subject.objects.filter(course=student_course, exam_id=exam_id).values("id", "subject_name")
+        return Response(status=status.HTTP_200_OK, data=subjects)
+
+
+
 
 
 
