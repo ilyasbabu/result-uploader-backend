@@ -57,6 +57,7 @@ class Exam(TimeStamp):
 
 class Subject(TimeStamp):
     subject_name = models.CharField(max_length=255) # eg: TRANSACTIONS: ESSENTIAL ENGLISH LANGUAGE SKILLS
+    subject_code = models.CharField(max_length=255, null=True, blank=True) # eg: A01
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
 
@@ -82,17 +83,22 @@ class Faculty(TimeStamp):
 
 
 class Mark(TimeStamp):
-    mark = models.IntegerField()
+    grade = models.CharField(max_length=10, null=True, blank=True)
+    grade_point = models.IntegerField(null=True, blank=True)
+    credit = models.IntegerField(null=True, blank=True)
+    credit_point = models.IntegerField(null=True, blank=True)
+    status = models.CharField(max_length=10, null=True, blank=True)
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
 
     def __str__(self):
-        return str(self.student.user.username) + " - " + str(self.subject.subject_name) + " - " + str(self.mark)
+        return str(self.student.user.username) + " - " + str(self.subject.subject_name) + " - " + str(self.credit_point)
 
 
 class MarkSheetDoc(TimeStamp):
     mark_sheet = models.FileField(upload_to="mark_sheet")
+    sgpa = models.CharField(max_length=10, null=True, blank=True)
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
 

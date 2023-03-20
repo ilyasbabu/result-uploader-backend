@@ -5,6 +5,7 @@ import sys
 import string
 import random
 import traceback
+import pdfplumber
 from django.shortcuts import render
 from django.db import transaction
 from rest_framework.response import Response
@@ -15,7 +16,7 @@ from rest_framework import status
 
 from .authentication import CustomTokenAuthentication
 from .serializers import UserLoginSerializer, StudentCreateSerializer, StudentListSerialzer
-from .models import User, UserAuthToken, Subject, Exam, Course, Student, Faculty
+from .models import User, UserAuthToken, Subject, Exam, Course, Student, Faculty, Mark, MarkSheetDoc
 
 
 # Create your views here.
@@ -198,3 +199,119 @@ class StudentDropdownViewFaculty(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
 
 
+
+class MarkSheetFileUploadViewStudent(APIView):
+    """API for uploading mark sheet file to students"""
+
+    authentication_classes = [CustomTokenAuthentication]
+
+    def post(self, request):
+        try:
+            # user verification
+            user = request.user
+            student = Student.objects.filter(user=user, is_active=True)
+            if not student.exists():
+                raise ValidationError("You must be logged in as Student to perform this action")
+            student = student[0]
+
+            # retreiving data from request
+            file = request.FILES.get('doc')
+            exam_id = request.POST.get('exam')
+            exam = Exam.objects.get(id=exam_id)
+
+            already_uploaded = Mark.objects.filter(student=student, exam=exam).exists()
+            if already_uploaded:
+                raise ValidationError("You have already uploaded marks for this exam")
+
+            # file verification
+            file_name = file.name
+            file_extension = file.name.split('.')[-1]
+            if file_extension != "pdf":
+                raise ValidationError("Invalid file type")
+            
+            # pdf data retrieval
+            with pdfplumber.open(file) as pdf:
+                first_page = pdf.pages[0]
+                marks_list = first_page.extract_table()
+                marks_list_length = len(marks_list)
+                if marks_list_length < 3 or marks_list_length > 10:
+                    raise ValidationError("Invalid pdf")
+                
+                # mark list data save
+                with transaction.atomic():
+                    total_credit_points = 0
+                    total_credit = 0
+                    failed = False
+                    for marks in marks_list[1:]:
+                        print(marks)
+                        subject_code = marks[0]
+                        subject_name = marks[1]
+                        grade = marks[2]
+                        grade_point = marks[3]
+                        credit = marks[4]
+                        credit_piont = marks[5]
+                        mark_status = marks[6]
+                        if mark_status == "Failed":
+                            failed = True
+                        
+                        if credit_piont != "--" or failed:
+                            total_credit_points += int(credit_piont)
+                            total_credit += int(credit)
+                        else:
+                            credit_piont = 0
+                            credit = 0
+                            grade_point = 0
+
+                        subject = Subject.objects.filter(subject_code=subject_code, subject_name=subject_name, is_active=True)
+                        if not subject.exists():
+                            subject = Subject(
+                                subject_code=subject_code,
+                                subject_name=subject_name,
+                                course=student.course,
+                                exam=exam,
+                                added_by=user,
+                            )
+                            subject.full_clean()
+                            subject.save()
+                        subject = subject[0]
+
+                        mark = Mark(
+                            subject=subject,
+                            grade=grade,
+                            grade_point=grade_point,
+                            credit=credit,
+                            credit_point=credit_piont,
+                            status=mark_status,
+                            student=student,
+                            exam=exam,
+                            added_by=user,
+                        )
+                        mark.full_clean()
+                        mark.save()
+
+                    try:
+                        sgpa = round(total_credit_points / total_credit, 2)
+                        if failed:
+                            sgpa = 0
+                    except ZeroDivisionError:
+                        sgpa = 0
+
+                    mark_doc = MarkSheetDoc(
+                        mark_sheet=file,
+                        sgpa=sgpa,
+                        student=student,
+                        exam=exam,
+                        added_by=user,
+                    )
+                    mark_doc.full_clean()
+                    mark_doc.save()
+
+            return Response(status=status.HTTP_200_OK, data="Mark Sheet Uploaded Succesfully!")
+        except Exception as e:
+            msg = "Something went wrong."
+            error_info = "\n".join(traceback.format_exception(*sys.exc_info()))
+            print(error_info)
+            if isinstance(e, ValidationError):
+                error_info = "\n".join(e.messages)
+                msg = e.messages
+            return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
