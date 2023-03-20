@@ -27,6 +27,7 @@ if __name__ == '__main__':
             first_name=first_name,
             last_name=last_name,
             is_superuser=True,
+            is_staff=True,
         )
         admin_user.set_password(password)
         admin_user.full_clean()
