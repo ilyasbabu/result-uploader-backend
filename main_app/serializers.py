@@ -32,6 +32,7 @@ class MarksViewRequestSerialzerStudent(serializers.Serializer):
 
 
 class MarksViewSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
     grade = serializers.CharField()
     grade_point = serializers.IntegerField()
     credit = serializers.IntegerField()
