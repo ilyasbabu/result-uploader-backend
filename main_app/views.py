@@ -271,6 +271,7 @@ class MarkSheetFileUploadViewStudent(APIView):
 
             # file verification
             file_name = file.name
+            print(file_name)
             file_extension = file.name.split('.')[-1]
             if file_extension != "pdf":
                 raise ValidationError("Invalid file type")
@@ -406,6 +407,7 @@ class ViewMarkSheetView(APIView):
             res = {}
             mark_sheet = MarkSheetDoc.objects.filter(student=student,exam=exam, is_active=True)
             if mark_sheet.exists():
+                mark_sheet = mark_sheet[0]
                 res["marksheet_id"] = mark_sheet.id
                 res["status"] = mark_sheet.status
             else:
