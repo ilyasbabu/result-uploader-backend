@@ -261,6 +261,8 @@ class MarkSheetFileUploadViewStudent(APIView):
             # retreiving data from request
             file = request.FILES.get('doc')
             exam_id = request.POST.get('exam')
+            if exam_id in ['undefined', None, ""]:
+                raise ValidationError("Choose an Examination!")
             exam = Exam.objects.get(id=exam_id)
 
             already_uploaded = Mark.objects.filter(student=student, exam=exam).exists()
@@ -352,7 +354,7 @@ class MarkSheetFileUploadViewStudent(APIView):
 
             return Response(status=status.HTTP_200_OK, data="Mark Sheet Uploaded Succesfully!")
         except Exception as e:
-            msg = "Something went wrong."
+            msg = ["Something went wrong."]
             error_info = "\n".join(traceback.format_exception(*sys.exc_info()))
             print(error_info)
             if isinstance(e, ValidationError):
@@ -402,9 +404,14 @@ class ViewMarkSheetView(APIView):
             marks = Mark.objects.filter(student=student, exam=exam, is_active=True)
             serializer = MarksViewSerializer(marks, many=True)
             res = {}
-            mark_sheet = MarkSheetDoc.objects.filter(student=student,exam=exam, is_active=True)[0]
-            res["marksheet_id"] = mark_sheet.id
-            res["status"] = mark_sheet.status
+            mark_sheet = MarkSheetDoc.objects.filter(student=student,exam=exam, is_active=True)
+            if mark_sheet.exists():
+                res["marksheet_id"] = mark_sheet.id
+                res["status"] = mark_sheet.status
+            else:
+                res["marksheet_id"] = ""
+                res["status"] = ""
+
             res["student"] = student.user.first_name
             res["course"] = student.course.course_name
             res["exam"] = exam.exam_name
