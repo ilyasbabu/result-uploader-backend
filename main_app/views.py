@@ -52,8 +52,13 @@ class LoginView(APIView):
             try:
                 user = User.objects.get(username=username)
                 success = user.check_password(password)
+                admin = False
+                if user.role == 1:
+                    admin = True
                 if not success:
                     raise User.DoesNotExist
+                if admin:
+                    raise ValidationError("Admin user!!!")
             except User.DoesNotExist:
                 raise ValidationError("Invalid Username or Password")
 
@@ -72,6 +77,13 @@ class LoginView(APIView):
             res["username"] = user.username
             res["user_role"] = user.role
             res['role_name'] = dict(ROLE_CHOICES).get(user.role)
+            if user.role == 2:
+                faculty = Faculty.objects.get(user=user)
+                course = faculty.course.course_name
+            elif user.role == 3:
+                student = Student.objects.get(user=user)
+                course = student.course.course_name
+            res['course'] = course
             return Response(status=status.HTTP_201_CREATED, data=res)
         except Exception as e:
             msg = "Something went wrong."
@@ -94,6 +106,13 @@ class LoginDataView(APIView):
         res["username"] = user.username
         res["user_role"] = user.role
         res['role_name'] = dict(ROLE_CHOICES).get(user.role)
+        if user.role == 2:
+            faculty = Faculty.objects.get(user=user)
+            course = faculty.course.course_name
+        elif user.role == 3:
+            student = Student.objects.get(user=user)
+            course = student.course.course_name
+        res['course'] = course
         return Response(status=status.HTTP_200_OK, data=res)
 
 
