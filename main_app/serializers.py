@@ -9,8 +9,8 @@ class UserLoginSerializer(serializers.Serializer):
 
 class StudentCreateSerializer(serializers.Serializer):
     username = serializers.CharField(required=True, allow_blank=False)
+    name = serializers.CharField(required=True, allow_blank=False)
     registration_no = serializers.CharField(required=True, allow_blank=False)
-    course = serializers.CharField(required=True, allow_blank=False)
 
 
 class StudentListSerialzer(serializers.Serializer):

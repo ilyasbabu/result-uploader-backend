@@ -144,16 +144,19 @@ class StudentCreateViewFaculty(APIView):
             username_exists = User.objects.filter(username=username).exists()
             if username_exists:
                 raise ValidationError("Username already exists")
-            course_id = serializer.validated_data.get("course")
-            try:
-                course = Course.objects.get(id=course_id)
-            except Course.DoesNotExist:
-                raise ValidationError("Course does not exist")
+            name = serializer.validated_data.get("name")
             registration_no = serializer.validated_data.get("registration_no")
+
+            faculty = Faculty.objects.get(user=user)
+            course = faculty.course
 
             # create user for student
             with transaction.atomic():
                 st_user = User.objects.create_user(username=username, password='12345', role=3)
+                st_user.first_name = name
+                st_user.full_clean()
+                st_user.save()
+
                 student = Student(
                     user = st_user,
                     registration_no = registration_no,
