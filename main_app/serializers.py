@@ -19,7 +19,7 @@ class StudentListSerialzer(serializers.Serializer):
     registration_no = serializers.CharField()
 
     def get_name(self, obj):
-        return obj.user.username
+        return obj.user.first_name
     
 
 class MarksViewRequestSerialzerFaculty(serializers.Serializer):
