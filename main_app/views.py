@@ -404,6 +404,7 @@ class ViewMarkSheetView(APIView):
             res = {}
             mark_sheet = MarkSheetDoc.objects.filter(student=student,exam=exam, is_active=True)[0]
             res["marksheet_id"] = mark_sheet.id
+            res["status"] = mark_sheet.status
             res["student"] = student.user.first_name
             res["course"] = student.course.course_name
             res["exam"] = exam.exam_name
