@@ -401,7 +401,14 @@ class ViewMarkSheetView(APIView):
 
             marks = Mark.objects.filter(student=student, exam=exam, is_active=True)
             serializer = MarksViewSerializer(marks, many=True)
-            return Response(status=status.HTTP_200_OK, data=serializer.data)
+            res = {}
+            mark_sheet = MarkSheetDoc.objects.filter(student=student,exam=exam, is_active=True)[0]
+            res["marksheet_id"] = mark_sheet.id
+            res["student"] = student.user.first_name
+            res["course"] = student.course.course_name
+            res["exam"] = exam.exam_name
+            res["mark_list"] = serializer.data
+            return Response(status=status.HTTP_200_OK, data=res)
         except Exception as e:
             msg = "Something went wrong."
             error_info = "\n".join(traceback.format_exception(*sys.exc_info()))
@@ -410,4 +417,41 @@ class ViewMarkSheetView(APIView):
                 error_info = "\n".join(e.messages)
                 msg = e.messages
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
+
+
+class ApproveMarklistView(APIView):
+    """API for approve/reject MarkSheet for faculty"""
+
+    authentication_classes = [CustomTokenAuthentication]
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            user = request.user
+            role = user.roles
+            if role != 2:
+                return Response(status=status.HTTP_200_OK, data="No permission to approve/reject MarkSheet")
+            marksheet_id = request.POST.get("marksheet")
+            marksheet = MarkSheetDoc.objects.get(id=marksheet_id)
+            status = request.POST.get("status")
+            if status == "Approve":
+                marksheet.status = "Approved"
+                marksheet.full_clean()
+                marksheet.save()
+                return Response(status=status.HTTP_200_OK, data="Approved Successfully!!")
+            elif status == "Reject":
+                marksheet.status = "Rejected"
+                marksheet.full_clean()
+                marksheet.save()
+                return Response(status=status.HTTP_200_OK, data="Rejected Successfully!!")
+            return Response(status=status.HTTP_200_OK, data="Something went wrong!!")
+        except Exception as e:
+            msg = "Something went wrong."
+            error_info = "\n".join(traceback.format_exception(*sys.exc_info()))
+            print(error_info)
+            if isinstance(e, ValidationError):
+                error_info = "\n".join(e.messages)
+                msg = e.messages
+            return Response(status=status.HTTP_404_NOT_FOUND, data=msg)        
 

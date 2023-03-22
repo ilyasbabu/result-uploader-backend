@@ -99,6 +99,7 @@ class Mark(TimeStamp):
 class MarkSheetDoc(TimeStamp):
     mark_sheet = models.FileField(upload_to="mark_sheet")
     sgpa = models.CharField(max_length=10, null=True, blank=True)
+    status = models.CharField(max_length=10, default="Pending")
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     exam = models.ForeignKey(Exam, on_delete=models.CASCADE)
 
