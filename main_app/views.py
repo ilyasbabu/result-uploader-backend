@@ -454,5 +454,24 @@ class ApproveMarklistView(APIView):
             if isinstance(e, ValidationError):
                 error_info = "\n".join(e.messages)
                 msg = e.messages
-            return Response(status=status.HTTP_404_NOT_FOUND, data=msg)        
+            return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
 
+
+class StudentDetailView(APIView):
+
+    authentication_classes = [CustomTokenAuthentication]
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        student_id = request.GET.get("student")
+        student = Student.objects.get(id=student_id)
+        res = {}
+        res["student"] = student.user.first_name
+        res["course"] = student.course.course_name
+        return Response(status=status.HTTP_200_OK, data=res)
+
+
+class ListStudentsView(APIView):
+    pass
