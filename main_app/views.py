@@ -260,6 +260,8 @@ class MarkSheetFileUploadViewStudent(APIView):
 
             # retreiving data from request
             file = request.FILES.get('doc')
+            if file in ['undefined', None, ""]:
+                raise ValidationError("Choose a pdf file!")
             exam_id = request.POST.get('exam')
             if exam_id in ['undefined', None, ""]:
                 raise ValidationError("Choose an Examination!")
@@ -301,7 +303,7 @@ class MarkSheetFileUploadViewStudent(APIView):
                         if mark_status == "Failed":
                             failed = True
                         
-                        if credit_piont != "--" or failed:
+                        if not failed:
                             total_credit_points += int(credit_piont)
                             total_credit += int(credit)
                         else:
@@ -320,7 +322,8 @@ class MarkSheetFileUploadViewStudent(APIView):
                             )
                             subject.full_clean()
                             subject.save()
-                        subject = subject[0]
+                        else:
+                            subject = subject[0]
 
                         mark = Mark(
                             subject=subject,
@@ -410,9 +413,11 @@ class ViewMarkSheetView(APIView):
                 mark_sheet = mark_sheet[0]
                 res["marksheet_id"] = mark_sheet.id
                 res["status"] = mark_sheet.status
+                res["sgpa"] = mark_sheet.sgpa
             else:
                 res["marksheet_id"] = ""
                 res["status"] = ""
+                res["sgpa"] = ""
 
             res["student"] = student.user.first_name
             res["course"] = student.course.course_name
