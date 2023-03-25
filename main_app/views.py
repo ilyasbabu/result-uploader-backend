@@ -66,9 +66,11 @@ class LoginDataView(APIView):
         res['role_name'] = dict(ROLE_CHOICES).get(user.role)
         if user.role == 2:
             faculty = Faculty.objects.get(user=user)
+            res['profile_id'] = faculty.id
             course = faculty.course.course_name
         elif user.role == 3:
             student = Student.objects.get(user=user)
+            res['profile_id'] = student.id
             course = student.course.course_name
         res['course'] = course
         return Response(status=status.HTTP_200_OK, data=res)
@@ -269,10 +271,12 @@ class ViewMarkSheetView(APIView):
             if mark_sheet.exists():
                 mark_sheet = mark_sheet[0]
                 res["marksheet_id"] = mark_sheet.id
+                res["marksheet_doc"] = "/media/"+str(mark_sheet.mark_sheet)
                 res["status"] = mark_sheet.status
                 res["sgpa"] = mark_sheet.sgpa
             else:
                 res["marksheet_id"] = ""
+                res["marksheet_doc"] = ""
                 res["status"] = ""
                 res["sgpa"] = ""
 
