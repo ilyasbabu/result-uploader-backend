@@ -1,11 +1,7 @@
 """
 Views Naming Convention : [Functionality]View[User-Role-Accessible(optional)]
 """
-import sys
-import string
-import random
-import traceback
-import pdfplumber
+import time
 from django.shortcuts import render
 from django.db import transaction
 from rest_framework.response import Response
@@ -24,6 +20,17 @@ from .serializers import (
     MarksViewSerializer,
 )
 from .models import User, UserAuthToken, Subject, Exam, Course, Student, Faculty, Mark, MarkSheetDoc, ROLE_CHOICES
+from .services import (
+    verify_document,
+    validate_file_upload_request,
+    verify_file_type,
+    retreive_and_save_marks,
+    validate_login_data,
+    get_login_user,
+    create_auth_token,
+    login_success_data,
+    handle_error
+)
 
 
 # Create your views here.
@@ -36,62 +43,13 @@ class LoginView(APIView):
 
     def post(self, request):
         try:
-            # validating data
-            serializer = UserLoginSerializer(data=request.data)
-            serializer.is_valid()
-            if serializer.errors:
-                error_list = [
-                    f"{error.upper()}: {serializer.errors[error][0]}"
-                    for error in serializer.errors
-                ]
-                raise ValidationError(error_list)
-            username = serializer.validated_data.get("username")
-            password = serializer.validated_data.get("password")
-
-            # checking user
-            try:
-                user = User.objects.get(username=username)
-                success = user.check_password(password)
-                admin = False
-                if user.role == 1:
-                    admin = True
-                if not success:
-                    raise User.DoesNotExist
-                if admin:
-                    raise ValidationError("Admin user!!!")
-            except User.DoesNotExist:
-                raise ValidationError("Invalid Username or Password")
-
-            # creating token
-            string_chars = string.ascii_lowercase + string.digits
-            token = "".join(random.choice(string_chars) for _ in range(15))
-            while UserAuthToken.objects.filter(key=token).exists():
-                token = "".join(random.choice(string_chars) for _ in range(15))
-            UserAuthToken.objects.filter(user=user).update(is_expired=True)
-            user_auth_token = UserAuthToken(user=user, key=token, added_by=user)
-            user_auth_token.save()
-
-            # return data
-            res = {}
-            res["token"] = token
-            res["username"] = user.username
-            res["user_role"] = user.role
-            res['role_name'] = dict(ROLE_CHOICES).get(user.role)
-            if user.role == 2:
-                faculty = Faculty.objects.get(user=user)
-                course = faculty.course.course_name
-            elif user.role == 3:
-                student = Student.objects.get(user=user)
-                course = student.course.course_name
-            res['course'] = course
-            return Response(status=status.HTTP_201_CREATED, data=res)
+            username, password = validate_login_data(request.data)
+            user = get_login_user(username, password)
+            token = create_auth_token(user)
+            data = login_success_data(user, token)
+            return Response(status=status.HTTP_201_CREATED, data=data)
         except Exception as e:
-            msg = "Something went wrong."
-            error_info = "\n".join(traceback.format_exception(*sys.exc_info()))
-            print(error_info)
-            if isinstance(e, ValidationError):
-                error_info = "\n".join(e.messages)
-                msg = e.messages
+            msg = handle_error(e)
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
 
 
@@ -167,12 +125,7 @@ class StudentCreateViewFaculty(APIView):
 
             return Response(status=status.HTTP_201_CREATED, data='Student created successfully')
         except Exception as e:
-            msg = "Something went wrong."
-            error_info = "\n".join(traceback.format_exception(*sys.exc_info()))
-            print(error_info)
-            if isinstance(e, ValidationError):
-                error_info = "\n".join(e.messages)
-                msg = e.messages
+            msg = handle_error(e)
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
 
 
@@ -212,7 +165,6 @@ class SubjectDropdownViewStudent(APIView):
         return Response(status=status.HTTP_200_OK, data=subjects)
 
 
-
 class StudentDropdownViewFaculty(APIView):
     """Student List view for faculty"""
 
@@ -234,14 +186,8 @@ class StudentDropdownViewFaculty(APIView):
 
             return Response(status=status.HTTP_200_OK, data=serializer.data)
         except Exception as e:
-            msg = "Something went wrong."
-            error_info = "\n".join(traceback.format_exception(*sys.exc_info()))
-            print(error_info)
-            if isinstance(e, ValidationError):
-                error_info = "\n".join(e.messages)
-                msg = e.messages
+            msg = handle_error(e)
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
-
 
 
 class MarkSheetFileUploadViewStudent(APIView):
@@ -252,6 +198,7 @@ class MarkSheetFileUploadViewStudent(APIView):
     def post(self, request):
         try:
             # user verification
+            time.sleep(1)
             user = request.user
             student = Student.objects.filter(user=user, is_active=True)
             if not student.exists():
@@ -260,110 +207,20 @@ class MarkSheetFileUploadViewStudent(APIView):
 
             # retreiving data from request
             file = request.FILES.get('doc')
-            if file in ['undefined', None, ""]:
-                raise ValidationError("Choose a pdf file!")
             exam_id = request.POST.get('exam')
-            if exam_id in ['undefined', None, ""]:
-                raise ValidationError("Choose an Examination!")
+            validate_file_upload_request(exam_id, file)
+
             exam = Exam.objects.get(id=exam_id)
 
             already_uploaded = Mark.objects.filter(student=student, exam=exam).exists()
             if already_uploaded:
                 raise ValidationError("You have already uploaded marks for this exam")
 
-            # file verification
-            file_name = file.name
-            print(file_name)
-            file_extension = file.name.split('.')[-1]
-            if file_extension != "pdf":
-                raise ValidationError("Invalid file type")
-            
-            # pdf data retrieval
-            with pdfplumber.open(file) as pdf:
-                first_page = pdf.pages[0]
-                marks_list = first_page.extract_table()
-                marks_list_length = len(marks_list)
-                if marks_list_length < 3 or marks_list_length > 10:
-                    raise ValidationError("Invalid pdf")
-                
-                # mark list data save
-                with transaction.atomic():
-                    total_credit_points = 0
-                    total_credit = 0
-                    failed = False
-                    for marks in marks_list[1:]:
-                        print(marks)
-                        subject_code = marks[0]
-                        subject_name = marks[1]
-                        grade = marks[2]
-                        grade_point = marks[3]
-                        credit = marks[4]
-                        credit_piont = marks[5]
-                        mark_status = marks[6]
-                        if mark_status == "Failed":
-                            failed = True
-                        
-                        if not failed:
-                            total_credit_points += int(credit_piont)
-                            total_credit += int(credit)
-                        else:
-                            credit_piont = 0
-                            credit = 0
-                            grade_point = 0
-
-                        subject = Subject.objects.filter(subject_code=subject_code, subject_name=subject_name, is_active=True)
-                        if not subject.exists():
-                            subject = Subject(
-                                subject_code=subject_code,
-                                subject_name=subject_name,
-                                course=student.course,
-                                exam=exam,
-                                added_by=user,
-                            )
-                            subject.full_clean()
-                            subject.save()
-                        else:
-                            subject = subject[0]
-
-                        mark = Mark(
-                            subject=subject,
-                            grade=grade,
-                            grade_point=grade_point,
-                            credit=credit,
-                            credit_point=credit_piont,
-                            status=mark_status,
-                            student=student,
-                            exam=exam,
-                            added_by=user,
-                        )
-                        mark.full_clean()
-                        mark.save()
-
-                    try:
-                        sgpa = round(total_credit_points / total_credit, 2)
-                        if failed:
-                            sgpa = 0
-                    except ZeroDivisionError:
-                        sgpa = 0
-
-                    mark_doc = MarkSheetDoc(
-                        mark_sheet=file,
-                        sgpa=sgpa,
-                        student=student,
-                        exam=exam,
-                        added_by=user,
-                    )
-                    mark_doc.full_clean()
-                    mark_doc.save()
-
+            verify_file_type(file)
+            retreive_and_save_marks(user, file, exam, student)
             return Response(status=status.HTTP_200_OK, data="Mark Sheet Uploaded Succesfully!")
         except Exception as e:
-            msg = ["Something went wrong."]
-            error_info = "\n".join(traceback.format_exception(*sys.exc_info()))
-            print(error_info)
-            if isinstance(e, ValidationError):
-                error_info = "\n".join(e.messages)
-                msg = e.messages
+            msg = handle_error(e)
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
         
 
@@ -425,12 +282,7 @@ class ViewMarkSheetView(APIView):
             res["mark_list"] = serializer.data
             return Response(status=status.HTTP_200_OK, data=res)
         except Exception as e:
-            msg = "Something went wrong."
-            error_info = "\n".join(traceback.format_exception(*sys.exc_info()))
-            print(error_info)
-            if isinstance(e, ValidationError):
-                error_info = "\n".join(e.messages)
-                msg = e.messages
+            msg = handle_error(e)
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
 
 
@@ -462,12 +314,7 @@ class ApproveMarklistView(APIView):
                 return Response(status=status.HTTP_200_OK, data="Rejected Successfully!!")
             return Response(status=status.HTTP_200_OK, data="Something went wrong!!")
         except Exception as e:
-            msg = "Something went wrong."
-            error_info = "\n".join(traceback.format_exception(*sys.exc_info()))
-            print(error_info)
-            if isinstance(e, ValidationError):
-                error_info = "\n".join(e.messages)
-                msg = e.messages
+            msg = handle_error(e)
             return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
 
 
