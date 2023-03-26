@@ -10,6 +10,7 @@ from .views import (
     ViewMarkSheetView,
     ApproveMarklistView,
     StudentDetailView,
+    SubjectWiseResultView,
 )
 
 urlpatterns = [
@@ -24,8 +25,9 @@ urlpatterns = [
     path("list/student/", StudentDropdownViewFaculty.as_view(), name="list_student"),
     path("marksheet/status/", ApproveMarklistView.as_view(), name="approve_marklist"),
     path("student/view/", StudentDetailView.as_view(), name="student_view"),
+    path("dropdown/subject/", SubjectDropdownViewStudent.as_view(), name="subject_dropdown"),
+    path("subject/result/", SubjectWiseResultView.as_view(), name="subject_result"),
 
     # for student
-    path("dropdown/subject/", SubjectDropdownViewStudent.as_view(), name="subject_dropdown"),
     path("upload/marksheet/", MarkSheetFileUploadViewStudent.as_view(), name="marksheet_file_upload"),
 ]

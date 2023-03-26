@@ -150,21 +150,23 @@ class SubjectDropdownViewStudent(APIView):
     def get(self, request):
         # retrieving user information from the request and checking if it is student
         user = request.user
-        if user.role != 3:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data="Log in as student to get subjects")
+        if user.role != 2:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data="Log in as faculty to get subjects")
 
         # retrieving student object fropm database and getting related course object
-        student = Student.objects.filter(user=user, is_active=True)[0]
-        student_course = student.course
-        
-        # retreiving exam id from request and returns error msg if not provided
-        exam_id = request.GET.get("exam")
-        if exam_id in [None, 'undefined', '']:
-            return Response(status=status.HTTP_400_BAD_REQUEST, data="Provide Exam id along with the request")
+        faculty = Faculty.objects.filter(user=user, is_active=True)[0]
+        faculty_course = faculty.course
 
         # retrieving data from database with students course and exam id provided
-        subjects = Subject.objects.filter(course=student_course, exam_id=exam_id).values("id", "subject_name")
-        return Response(status=status.HTTP_200_OK, data=subjects)
+        res = []
+        exams = Exam.objects.filter(is_active = True)
+        for exam in exams:
+            subject_dict = {}
+            subjects = Subject.objects.filter(course=faculty_course, exam=exam).values("id", "subject_name")
+            subject_dict["exam"] = exam.exam_name
+            subject_dict["subjects"] = subjects
+            res.append(subject_dict)
+        return Response(status=status.HTTP_200_OK, data=res)
 
 
 class StudentDropdownViewFaculty(APIView):
@@ -300,18 +302,19 @@ class ApproveMarklistView(APIView):
     def post(self, request):
         try:
             user = request.user
-            role = user.roles
+            role = user.role
             if role != 2:
-                return Response(status=status.HTTP_200_OK, data="No permission to approve/reject MarkSheet")
-            marksheet_id = request.POST.get("marksheet")
+                return Response(status=status.HTTP_404_NOT_FOUND, data="No permission to approve/reject MarkSheet")
+            print(request.data)
+            marksheet_id = request.data.get("marksheet")
             marksheet = MarkSheetDoc.objects.get(id=marksheet_id)
-            status = request.POST.get("status")
-            if status == "Approve":
+            status_ = request.data.get("status")
+            if status_ == "Approve":
                 marksheet.status = "Approved"
                 marksheet.full_clean()
                 marksheet.save()
                 return Response(status=status.HTTP_200_OK, data="Approved Successfully!!")
-            elif status == "Reject":
+            elif status_ == "Reject":
                 marksheet.status = "Rejected"
                 marksheet.full_clean()
                 marksheet.save()
@@ -338,5 +341,28 @@ class StudentDetailView(APIView):
         return Response(status=status.HTTP_200_OK, data=res)
 
 
-class ListStudentsView(APIView):
-    pass
+class SubjectWiseResultView(APIView):
+    
+    authentication_classes = [CustomTokenAuthentication]
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        subject_id = request.GET.get("subject")
+        res = {}
+        subject = Subject.objects.get(id=subject_id)
+        marks = Mark.objects.filter(subject=subject).values(
+            "student__user__first_name",
+            "grade",
+            "grade_point",
+            "credit",
+            "credit_point",
+            "status",
+        )
+        res["marks"] = marks
+        res["subject"] = subject.subject_name
+
+        
+        return Response(status=status.HTTP_200_OK, data=res)
+
