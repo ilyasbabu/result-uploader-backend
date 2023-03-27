@@ -76,6 +76,28 @@ class LoginDataView(APIView):
         return Response(status=status.HTTP_200_OK, data=res)
 
 
+class ChangePasswordView(APIView):
+
+    authentication_classes = [CustomTokenAuthentication]
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            user = request.user
+            password = request.POST.get("password")
+            confirm_password = request.POST.get("passwordConfirm")
+            if password != confirm_password:
+                return Response(status=status.HTTP_404_NOT_FOUND, data=["Both password and confirm password should be same!"])
+            user.set_password(password)
+            user.save()
+            return Response(status=status.HTTP_201_CREATED, data="Password changed successfully")
+        except Exception as e:
+            msg = handle_error(e)
+            return Response(status=status.HTTP_404_NOT_FOUND, data=msg)
+
+
+
 class StudentCreateViewFaculty(APIView):
     """Student creation API for faculty"""
 
@@ -112,7 +134,7 @@ class StudentCreateViewFaculty(APIView):
 
             # create user for student
             with transaction.atomic():
-                st_user = User.objects.create_user(username=username, password='12345', role=3)
+                st_user = User.objects.create_user(username=username, password=registration_no, role=3)
                 st_user.first_name = name
                 st_user.full_clean()
                 st_user.save()

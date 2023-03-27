@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     LoginView,
     LoginDataView,
+    ChangePasswordView,
     StudentCreateViewFaculty,
     ExamDropdownViewStudent,
     SubjectDropdownViewStudent,
@@ -17,6 +18,7 @@ urlpatterns = [
     # common
     path("login/", LoginView.as_view(), name="login"),
     path("login/data/", LoginDataView.as_view(), name="login_data"),
+    path("change/password/", ChangePasswordView.as_view(), name="change_password"),
     path("marks/view/", ViewMarkSheetView.as_view(), name="marks_list"),
     path("dropdown/exam/", ExamDropdownViewStudent.as_view(), name="exam_dropdown"), # semester list
 
