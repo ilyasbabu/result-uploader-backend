@@ -98,7 +98,7 @@ def verify_file_type(file):
         raise ValidationError("Invalid file type")
 
 
-def verify_document(page):
+def verify_document(page, exam):
     university = page.search("UNIVERSITY OF CALICUT")
     if university == []:
         return False
@@ -107,6 +107,8 @@ def verify_document(page):
     if sgpa == []:
         return False
 
+    verify_exam_marksheet_match(page, exam)
+
     marks_list = page.extract_table()
     marks_list_length = len(marks_list)
     if marks_list_length < 3 or marks_list_length > 9:
@@ -114,10 +116,29 @@ def verify_document(page):
 
     return marks_list
 
+
+def verify_exam_marksheet_match(page, exam):
+    res = []
+    if exam.exam_name == "Semester 1":
+        res = page.search("I Semester")
+    elif exam.exam_name == "Semester 2":
+        res = page.search("II Semester")
+    elif exam.exam_name == "Semester 3":
+        res = page.search("III Semester")
+    elif exam.exam_name == "Semester 4":
+        res = page.search("IV Semester")
+    elif exam.exam_name == "Semester 5":
+        res = page.search("V Semester")
+    elif exam.exam_name == "Semester 6":
+        res = page.search("VI Semester")
+    if len(res) == 0:
+        raise ValidationError("Exam and Result Mismatch!")
+
+
 def retreive_and_save_marks(user, file, exam, student):
     with pdfplumber.open(file) as pdf:
         first_page = pdf.pages[0]
-        verified = verify_document(first_page)
+        verified = verify_document(first_page,exam)
         if not verified:
             raise ValidationError("Invalid pdf")
         marks_list = verified
