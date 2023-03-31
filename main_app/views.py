@@ -388,3 +388,41 @@ class SubjectWiseResultView(APIView):
         
         return Response(status=status.HTTP_200_OK, data=res)
 
+
+class MarkSheetEditView(APIView):
+
+    authentication_classes = [CustomTokenAuthentication]
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        mark_id = request.POST.get("id")
+        grade = request.POST.get("grade")
+        grade_point = request.POST.get("grade_point")
+        credit = request.POST.get("credit")
+        credit_point = request.POST.get("credit_point")
+        mark = Mark.objects.get(id=mark_id)
+        mark.grade = grade
+        mark.grade_point = grade_point
+        mark.credit = credit
+        mark.credit_point = credit_point
+        mark.full_clean()
+        mark.save()
+        return Response(status=status.HTTP_200_OK, data="Updated mark")
+    
+
+class ConfirmMarkChangesView(APIView):
+
+    authentication_classes = [CustomTokenAuthentication]
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        mark_sheet_id = request.POST.get("id")
+        markSheet = MarkSheetDoc.objects.get(id=mark_sheet_id)
+        markSheet.status = "Pending"
+        markSheet.full_clean()
+        markSheet.save()
+        return Response(status=status.HTTP_200_OK, data="Updated mark")
+

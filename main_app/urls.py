@@ -12,6 +12,8 @@ from .views import (
     ApproveMarklistView,
     StudentDetailView,
     SubjectWiseResultView,
+    MarkSheetEditView,
+    ConfirmMarkChangesView,
 )
 
 urlpatterns = [
@@ -32,4 +34,6 @@ urlpatterns = [
 
     # for student
     path("upload/marksheet/", MarkSheetFileUploadViewStudent.as_view(), name="marksheet_file_upload"),
+    path("mark/edit/", MarkSheetEditView.as_view(), name="marksheet_edit"),
+    path("mark/confirm/", ConfirmMarkChangesView.as_view(), name="marksheet_confirm"),
 ]
