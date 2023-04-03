@@ -59,6 +59,14 @@ def get_login_user(username, password):
         raise ValidationError("Invalid Username or Password")
 
 
+def check_deleted(user):
+    role = user.role
+    if role == 3:
+        if Student.objects.filter(user=user,is_active=False).exists():
+            raise ValidationError("Deleted User!!!")
+    return True
+
+
 def create_auth_token(user):
     string_chars = string.ascii_lowercase + string.digits
     token = "".join(random.choice(string_chars) for _ in range(15))

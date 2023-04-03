@@ -29,6 +29,7 @@ from .services import (
     get_login_user,
     create_auth_token,
     login_success_data,
+    check_deleted,
     handle_error
 )
 
@@ -45,6 +46,7 @@ class LoginView(APIView):
         try:
             username, password = validate_login_data(request.data)
             user = get_login_user(username, password)
+            check_deleted(user)
             token = create_auth_token(user)
             data = login_success_data(user, token)
             return Response(status=status.HTTP_201_CREATED, data=data)
@@ -425,4 +427,25 @@ class ConfirmMarkChangesView(APIView):
         markSheet.full_clean()
         markSheet.save()
         return Response(status=status.HTTP_200_OK, data="Updated mark")
+
+
+class StudentDeleteView(APIView):
+
+    authentication_classes = [CustomTokenAuthentication]
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        student_id = request.POST.get("student")
+        student = Student.objects.get(id=student_id)
+        user = student.user
+        with transaction.atomic():
+            student.is_active = False
+            student.full_clean()
+            student.save()
+            user.is_active = False
+            user.save()
+
+        return Response(status=status.HTTP_200_OK, data="Student deleted Successfully!")
+
 
