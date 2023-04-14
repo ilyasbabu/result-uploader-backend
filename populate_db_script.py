@@ -14,26 +14,28 @@ from main_app.models import *
 
 if __name__ == '__main__':
     print ('Starting database population...\n')
-    print ("Creating Admin User...")
+    # print ("Creating Admin User...")
     with transaction.atomic():
-        username = 'admin'
-        password = '1234'
-        email = 'admin@example.com'
-        first_name = 'admin'
-        last_name = ''
-        admin_user = User(
-            username=username,
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-            is_superuser=True,
-            is_staff=True,
-        )
-        admin_user.set_password(password)
-        admin_user.full_clean()
-        admin_user.save()
-        print ("admin credentials: \n username - "+username+"\n password - "+password)
-        print ("SuperAdmin User Created Sucessfully!!!\n")
+        # username = 'admin'
+        # password = '1234'
+        # email = 'admin@example.com'
+        # first_name = 'admin'
+        # last_name = ''
+        # admin_user = User(
+        #     username=username,
+        #     email=email,
+        #     first_name=first_name,
+        #     last_name=last_name,
+        #     is_superuser=True,
+        #     is_staff=True,
+        # )
+        # admin_user.set_password(password)
+        # admin_user.full_clean()
+        # admin_user.save()
+        # print ("admin credentials: \n username - "+username+"\n password - "+password)
+        # print ("SuperAdmin User Created Sucessfully!!!\n")
+        admin_user = User.objects.all()
+        admin_user = admin_user[0]
 
         print ("Creating Exams...")
         semester_list = [
