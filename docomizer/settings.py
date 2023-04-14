@@ -64,6 +64,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://192.168.1.16:3000",
+    "https://docomizer.vercel.app"
 
 ]
 
